@@ -1,0 +1,129 @@
+{
+    "tasks": [
+        {
+            "type": "cppbuild",
+            "label": "C++ UnitTests build",
+            "command": "/usr/bin/g++",
+            "args": [
+                "-std=c++20",
+                "-fdiagnostics-color=always",                  
+                "-Wall",
+                "-Wextra",
+                "-g3",
+                
+                "-g", "${workspaceFolder}/cpp/src/cpp17/main.cpp",
+                "-g", "${workspaceFolder}/cpp/src/memory/main.cpp",                 
+                "-g", "${workspaceFolder}/cpp/src/problems/bigint/main.cpp",
+                "-g", "${workspaceFolder}/cpp/src/problems/backtracking.cpp",
+
+                "-g", "${workspaceFolder}/cpp/src/meeting_rooms/lib/meeting_rooms.cpp",
+
+                "-g", "${workspaceFolder}/cpp/src/meeting_rooms/tests/test_intervaltree.cpp",
+                "-g", "${workspaceFolder}/cpp/src/meeting_rooms/tests/test_meetingrooms.cpp",
+                
+                "-g", "${workspaceFolder}/cpp/src/meeting_rooms/tests/main.cpp",
+                
+                "-o", "${workspaceFolder}/cpp/build/test_meetingrooms",
+                
+                "-lgtest",
+                "-lgtest_main",
+                "-pthread",
+            ],
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },            
+        },
+        {
+            "type": "cppbuild",
+            "label": "C++ Test Driver build",
+            "command": "/usr/bin/g++",
+            "args": [
+                "-std=c++20",
+                "-fdiagnostics-color=always",                  
+                "-Wall",
+                "-Wextra",
+                "-O3",
+               
+                "-g", "${workspaceFolder}/cpp/src/meeting_rooms/lib/meeting_rooms.cpp",
+                "-g", "${workspaceFolder}/cpp/src/meeting_rooms/main.cpp",
+                "-o", "${workspaceFolder}/cpp/build/meeting_rooms",                
+                "-pthread",
+            ],
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },            
+        },
+        {
+            "label": "C# UnitTests build",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "test",
+                "${workspaceFolder}/csharp/MeetingRooms/MeetingRooms.sln",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary;ForceNoAlign"
+            ],
+            "problemMatcher": ["$msCompile"],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+        },
+        {
+            "label": "C# Test Driver build",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "--configuration", "Release",
+                "${workspaceFolder}/csharp/MeetingRooms/MeetingRooms.sln",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary;ForceNoAlign"
+            ],
+            "problemMatcher": ["$msCompile"],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+        },
+        {
+            "label": "publish",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "publish",
+                "${workspaceFolder}/csharp/MeetingRooms/MeetingRooms.sln",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary;ForceNoAlign"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "watch",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "watch",
+                "run",
+                "--project",
+                "${workspaceFolder}/csharp/MeetingRooms/MeetingRooms.sln"
+            ],
+            "problemMatcher": "$msCompile"
+        }
+    ],
+    "version": "2.0.0"
+}

@@ -114,7 +114,7 @@ TEST(cpp17, string_view)
     ASSERT_EQ(str.back(), '\n');
 
     for (auto c : str)
-        std::cout << c;
+        std::wcout << c;
 
     ASSERT_EQ(str.find(L"This"), 1);
     ASSERT_EQ(str.find_last_of(L"t"), str.length() - 2);

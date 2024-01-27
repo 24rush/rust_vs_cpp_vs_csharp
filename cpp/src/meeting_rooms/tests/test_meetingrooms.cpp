@@ -53,7 +53,7 @@ TEST(meeting_rooms, MeetingRoom_book)
     auto booking2 = scheduler.requestRoom(slot2);
     EXPECT_FALSE(booking2.has_value());
 }
-/*
+
 TEST(meeting_rooms, MeetingRoom_book_2)
 {
     MeetingRoom m1("M1", 4);
@@ -122,7 +122,7 @@ TEST(meeting_rooms, MeetingRoom_book_3)
         }
     }
 }
-*/
+
 TEST(meeting_rooms, remove_passed_bookings)
 {
     MeetingRoomScheduler scheduler;
@@ -134,14 +134,12 @@ TEST(meeting_rooms, remove_passed_bookings)
         scheduler.registerRoom(meetingRooms.back());
     }
 
-    auto requestRoom = [&scheduler](int i)
+    auto requestRoom = [&scheduler]()
     {
-        std::this_thread::sleep_for(milliseconds(i * 100));
-
-        for (size_t i = 0; i < 10 || 1; i++)
+        for (size_t i = 0; i < 10; i++)
         {
             auto now = system_clock::now();
-            auto millis = milliseconds(generate_rnd_duration(5));
+            auto millis = milliseconds(/*generate_rnd_duration(5)*/i);
             auto rnd_ts = DateTimeSlot((now + millis), 1);
 
             auto room = scheduler.requestRoom(rnd_ts);
@@ -152,14 +150,14 @@ TEST(meeting_rooms, remove_passed_bookings)
             }
             else
             {
-                // std::cout << "No rooms on " << rnd_ts.toString();
+                //std::cout << "No rooms on " << rnd_ts.toString();
             }
         }
     };
 
-    std::thread t1(requestRoom, 1);
-    std::thread t2(requestRoom, 2);
-    std::thread t3(requestRoom, 3);
+    std::thread t1(requestRoom);
+    std::thread t2(requestRoom);
+    std::thread t3(requestRoom);
 
     t1.join();
     t2.join();

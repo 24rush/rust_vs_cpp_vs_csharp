@@ -24,17 +24,17 @@ int main(int argc, char *argv[])
     {
         const std::vector<std::string_view> args(argv, argv + argc);
 
+        auto next_token = [&args](int pos)
+        {
+            auto str = args[pos + 1];
+            auto result = -1;
+            std::from_chars(str.data(), str.data() + str.size(), result);
+
+            return result;
+        };
+        
         for (auto i = 0; i < argc; i++)
         {
-            auto next_token = [&args](int pos)
-            {
-                auto str = args[pos + 1];
-                auto result = -1;
-                std::from_chars(str.data(), str.data() + str.size(), result);
-
-                return result;
-            };
-
             if (args[i] == "-t")
             {
                 nr_threads = next_token(i++);
