@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scheduler", "Scheduler\sche
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "service", "Service\service.csproj", "{FF122AE5-F024-45FF-ACE7-D04EFE6840DE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{C9BD7C29-56E6-46D8-A431-5DF539F98B6E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +26,9 @@ Global
 		{FF122AE5-F024-45FF-ACE7-D04EFE6840DE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FF122AE5-F024-45FF-ACE7-D04EFE6840DE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FF122AE5-F024-45FF-ACE7-D04EFE6840DE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C9BD7C29-56E6-46D8-A431-5DF539F98B6E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C9BD7C29-56E6-46D8-A431-5DF539F98B6E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C9BD7C29-56E6-46D8-A431-5DF539F98B6E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C9BD7C29-56E6-46D8-A431-5DF539F98B6E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

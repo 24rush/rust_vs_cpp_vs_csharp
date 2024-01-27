@@ -14,7 +14,7 @@ use self::{
 
 mod intervaltree;
 mod tests;
-mod types;
+pub mod types;
 
 type IntervalType = DateTime<Local>;
 type IntervalPayload = String;
@@ -40,14 +40,53 @@ impl CleanupContext {
     }
 }
 
+struct Statistics {
+    prev_now: Option<DateTime<Local>>,
+    no_bookings: u64,
+    total_bookings: u64,
+    first_booking: bool,
+}
+
+impl Statistics {
+    pub fn show_no_booking_per_sec(&mut self) {
+        if self.first_booking {
+            self.first_booking = false;
+            self.prev_now = Some(Local::now());
+        } else if (Local::now() - self.prev_now.unwrap()).to_std().unwrap()
+            > std::time::Duration::new(1, 0)
+        {
+            self.total_bookings += self.no_bookings;
+            println!(
+                "{0} bookings/sec | total: {1}",
+                self.no_bookings, self.total_bookings
+            );
+
+            self.prev_now = Some(Local::now());
+            self.no_bookings = 0;
+        }
+    }
+}
+
+impl Default for Statistics {
+    fn default() -> Self {
+        Self {
+            prev_now: None,
+            no_bookings: 0,
+            total_bookings: 0,
+            first_booking: true,
+        }
+    }
+}
+
 #[derive(Default)]
 struct MeetingRoomSchedulerData {
     i_tree: IntervalTree<IntervalType, IntervalPayload>,
     meeting_rooms: HashMap<IntervalPayload, MeetingRoom>,
     end_times: BinaryHeap<Reverse<IntervalType>>,
+    statistics: Statistics,
 }
 
-struct MeetingRoomScheduler {
+pub struct MeetingRoomScheduler {
     cleanup_thread: Option<thread::JoinHandle<()>>,
     cleanup_context: Arc<CleanupContext>,
     sync_data: Arc<RwLock<MeetingRoomSchedulerData>>,
@@ -118,6 +157,9 @@ impl MeetingRoomScheduler {
                     && ts.get_end_time() < write_data.end_times.peek().unwrap().0;
 
                 write_data.end_times.push(Reverse(ts.get_end_time()));
+
+                write_data.statistics.no_bookings += 1;
+                write_data.statistics.show_no_booking_per_sec();
             }
 
             if restart_cleanup {

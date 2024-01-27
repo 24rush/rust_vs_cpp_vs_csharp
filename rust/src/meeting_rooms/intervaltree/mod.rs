@@ -44,7 +44,7 @@ struct IntervalTreeNode<IntervalType, PayloadType> {
 }
 
 impl<
-        IntervalType: std::cmp::PartialEq + std::cmp::PartialOrd,
+        IntervalType: std::cmp::PartialEq + std::cmp::PartialOrd + std::cmp::Ord,
         PayloadType: std::cmp::Eq + std::hash::Hash,
     > IntervalTreeNode<IntervalType, PayloadType>
 where
@@ -119,6 +119,10 @@ where
                         self.low = succ_node.low;
                         self.high = succ_node.high;
                         self.payloads = succ_node.payloads.clone();
+                        self.max_high = std::cmp::max(
+                            self.left.as_ref().unwrap().max_high,
+                            self.right.as_ref().unwrap().max_high,
+                        );
 
                         self.right = self
                             .right

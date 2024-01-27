@@ -9,6 +9,7 @@
 #include <mutex>
 #include <condition_variable>
 
+#include <time.h>
 #include <chrono>
 using namespace std::chrono;
 
@@ -44,7 +45,12 @@ public:
         auto start = duration_cast<seconds>(this->getStartTime().time_since_epoch()).count();
         auto end = duration_cast<seconds>(this->getEndTime().time_since_epoch()).count();
 
-        return std::string(std::ctime(&start)) + std::string(std::ctime(&end));
+        char startBuf[50] = {0}, endBuf[50] = {0};
+
+        auto ts_str = std::string(ctime_r(&start, startBuf)) + " " + std::string(ctime_r(&end, endBuf));
+        ts_str.erase(std::remove(ts_str.begin(), ts_str.end(), '\n'), ts_str.cend());
+
+        return ts_str;
     }
 
 protected:
@@ -61,15 +67,15 @@ public:
     MeetingRoom &operator=(MeetingRoom &) = default;
     MeetingRoom &operator=(MeetingRoom &&) = default;
 
-    MeetingRoom(const std::string &name, size_t seats) : name(name), seats(seats)
-    {
+    MeetingRoom(const std::string &a_name, size_t a_seats) : name(a_name), seats(a_seats)
+    {        
     }
 
-    auto getName() const { return this->name; }
+    const std::string &getName() const { return this->name; }
 
 protected:
     std::string name;
-    size_t seats;
+    size_t seats;    
 };
 
 struct MeetingRoomBooking
@@ -86,7 +92,7 @@ public:
     void registerRoom(const MeetingRoom &m);
 
     std::optional<MeetingRoomBooking> requestRoom(const DateTimeSlot &ts);
-    std::optional<MeetingRoomBooking> requestRoom(const std::string& roomName, const DateTimeSlot &ts);
+    std::optional<MeetingRoomBooking> requestRoom(const std::string &roomName, const DateTimeSlot &ts);
 
     void cancelBooking(const MeetingRoomBooking &booking);
 
@@ -94,7 +100,7 @@ public:
 
 protected:
     using IntervalType = sys_time<milliseconds>; // meeting timestamp
-    using IntervalPayload = std::string; // meeting room name
+    using IntervalPayload = std::string;    // meeting room name
 
     // Storage for booked intervals
     IntervalTree<IntervalType, IntervalPayload> iTree;
@@ -103,6 +109,7 @@ protected:
     std::priority_queue<IntervalType, std::vector<IntervalType>, std::greater<IntervalType>> endTimes;
 
     // Storage of registered meeting rooms
+    std::shared_mutex lck_meetingRooms;
     std::unordered_map<IntervalPayload, MeetingRoom> meetingRooms;
 
     mutable std::recursive_mutex lck_cleanup;

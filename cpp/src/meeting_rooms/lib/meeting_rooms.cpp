@@ -1,5 +1,4 @@
-#include <atomic>
-
+#include <iostream>
 #include "../include/meeting_rooms.h"
 
 MeetingRoomScheduler::MeetingRoomScheduler()
@@ -18,34 +17,22 @@ MeetingRoomScheduler::~MeetingRoomScheduler()
 
 void MeetingRoomScheduler::registerRoom(const MeetingRoom &m)
 {
+    std::lock_guard guard_write(this->lck_meetingRooms);
     this->meetingRooms.insert(std::make_pair(m.getName(), m));
 }
 
 std::optional<MeetingRoomBooking> MeetingRoomScheduler::requestRoom(const DateTimeSlot &ts)
 {
-    static auto prevNow = system_clock::now();
-    static std::atomic_int noBookings = 0;
-
-    auto showNoBookingPerSec = []()
-    {
-        if ((system_clock::now() - prevNow) > seconds(1))
-        {
-            prevNow = system_clock::now();
-            std::cout << noBookings << " bookings/sec \n";
-            noBookings = 0;
-        }
-    };
-
     auto bookedRoomsInInterval = this->findConflictingRooms(ts);
 
-    for (auto room : this->meetingRooms)
     {
-        if (!bookedRoomsInInterval.contains(room.first))
+        std::shared_lock guard_read(this->lck_meetingRooms);
+        for (auto room : this->meetingRooms)
         {
-            noBookings++;
-            showNoBookingPerSec();
-
-            return this->bookRoom(room.second, ts);
+            if (!bookedRoomsInInterval.contains(room.first))
+            {
+                return this->bookRoom(room.second, ts);
+            }
         }
     }
 
@@ -54,6 +41,8 @@ std::optional<MeetingRoomBooking> MeetingRoomScheduler::requestRoom(const DateTi
 
 std::optional<MeetingRoomBooking> MeetingRoomScheduler::requestRoom(const std::string &roomName, const DateTimeSlot &ts)
 {
+    std::shared_lock guard_read(this->lck_meetingRooms);
+
     if (auto itMeetingRoom = this->meetingRooms.find(roomName); itMeetingRoom != this->meetingRooms.end())
     {
         if (!this->findConflictingRooms(ts).contains(itMeetingRoom->first))
@@ -71,18 +60,46 @@ std::string timePointToString(const std::chrono::sys_time<milliseconds> &time_po
 
 MeetingRoomBooking MeetingRoomScheduler::bookRoom(const MeetingRoom &room, const DateTimeSlot &ts)
 {
+    static auto prevNow = system_clock::now();
+    static int noBookings = 0;
+    static int totalBookings = 0;
+    static bool firstBooking = true;
+
+    auto showNoBookingPerSec = []()
+    {
+        if (firstBooking)
+        {
+            firstBooking = false;
+            prevNow = system_clock::now();
+        }
+        else if ((system_clock::now() - prevNow) > seconds(1))
+        {
+            totalBookings += noBookings;
+            std::cout << noBookings << " bookings/sec | total:  " << totalBookings << std::endl;
+
+            prevNow = system_clock::now();
+            noBookings = 0;
+        }
+    };
+
     this->iTree.insert({ts.getStartTime(), ts.getEndTime(), room.getName()});
 
+    bool restart_cleanup = false;
     {
         std::lock_guard lock(this->lck_cleanup);
 
+        // Check if current booking ends before previous minimum one
+        restart_cleanup = this->endTimes.size() && ts.getEndTime() < this->endTimes.top();
         this->endTimes.push(ts.getEndTime());
 
-        if (ts.getEndTime() < this->endTimes.top())
-        {
-            this->restart = true;
-            cv_wakeCleanupThread.notify_one();
-        }
+        noBookings++;
+        showNoBookingPerSec();
+    }
+
+    if (restart_cleanup)
+    {
+        this->restart = true;
+        cv_wakeCleanupThread.notify_one();
     }
 
     return MeetingRoomBooking{room, ts};
@@ -117,24 +134,23 @@ void MeetingRoomScheduler::run_cleanup()
 
     do
     {
+        auto now = system_clock::now();
+        auto cleanup_required = false;
+
         std::unique_lock lock(this->lck_cleanup);
 
-        auto now = system_clock::now();
-
-        if (this->endTimes.size() > 0 && this->endTimes.top() <= now)
+        while (this->endTimes.size() > 0 && this->endTimes.top() <= now)
         {
-            auto lastPastInterval = this->endTimes.top();
-
-            while (this->endTimes.size() > 0 && lastPastInterval <= now)
-            {
-                lastPastInterval = this->endTimes.top();
-                this->endTimes.pop();
-            }
-
-            removeExpiredBookingsTill(lastPastInterval);
+            this->endTimes.pop();
+            cleanup_required = true;
         }
 
-        auto timeLeftTillNextBookingEnds = this->endTimes.size() == 0 ? nanoseconds(hours(1)) : this->endTimes.top() - system_clock::now();
+        if (cleanup_required)
+        {
+            removeExpiredBookingsTill(time_point_cast<std::chrono::milliseconds>(now));
+        }
+
+        auto timeLeftTillNextBookingEnds = this->endTimes.size() == 0 ? nanoseconds(hours(1)) : this->endTimes.top() - now;
 
         auto waitRes = cv_wakeCleanupThread.wait_for(lock, timeLeftTillNextBookingEnds, [&]
                                                      { return this->stop || this->restart; });

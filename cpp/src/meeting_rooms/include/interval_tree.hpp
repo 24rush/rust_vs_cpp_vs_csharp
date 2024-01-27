@@ -23,7 +23,7 @@ public:
     void insert(Data iData)
     {
         std::unique_lock lock(this->rootSync);
-        this->root = this->insertInternal(std::move(this->root), iData);
+        this->insertInternal(this->root, iData);
     }
 
     void remove(Data iData)
@@ -84,100 +84,80 @@ protected:
     IntervalTreeNodePtr root;
     mutable std::shared_mutex rootSync;
 
-    IntervalTreeNodePtr insertInternal(IntervalTreeNodePtr root, const Data &data)
+    void insertInternal(IntervalTreeNodePtr &root, const Data &data)
     {
         auto [low, high, payload] = data;
 
         if (root == nullptr)
-            return std::make_unique<IntervalTreeNode>(IntervalTreeNode{{payload}, high, low, high, 0, 0});
+        {
+            root = std::make_unique<IntervalTreeNode>(IntervalTreeNode{{payload}, high, low, high, 0, 0});
+            return;
+        }
 
         if (root->low == low && root->high == high)
         {
             root->payloads.insert(payload);
-            return root;
+            return;
         }
 
         // If root's low value is smaller, then new interval goes to left subtree
         if (low < root->low)
-            root->left = insertInternal(std::move(root->left), data);
+            insertInternal(root->left, data);
         else
-            root->right = insertInternal(std::move(root->right), data);
+            insertInternal(root->right, data);
 
         // Update the maxHigh value of this ancestor if needed
         root->maxHigh = std::max(root->maxHigh, high);
-
-        return root;
     }
 
-    void removeInternal(IntervalTreeNodePtr &root, const IntervalType &low, const IntervalType &high, PayloadType payload)
+    void removeInternal(IntervalTreeNodePtr &root, const IntervalType &low, const IntervalType &high, std::optional<PayloadType> payload)
     {
         if (root == nullptr)
             return;
 
-        if (root->low == low && root->high == high)
+        if (low < root->low)
+            removeInternal(root->left, low, high, payload);
+        else if (low > root->low)
+            removeInternal(root->right, low, high, payload);
+        else if (root->high == high)
         {
-            root->payloads.erase(payload);
+            if (payload.has_value())
+                root->payloads.erase(payload.value());
+            else
+                root->payloads.clear();
 
             if (root->payloads.size() == 0)
             {
-                std::optional<IntervalType> childMax;
-                if (root->left != nullptr && root->right != nullptr)
-                    childMax = std::max(root->left->maxHigh, root->right->maxHigh);
-                else if (root->left != nullptr)
-                    childMax = root->left->maxHigh;
-                else if (root->right != nullptr)
-                    childMax = root->right->maxHigh;
+                // Node with only one child or no child
+                if (root->left == nullptr)
+                {
+                    root = std::move(root->right);
+                    return;
+                }
+                else if (root->right == nullptr)
+                {
+                    root = std::move(root->left);
+                    return;
+                }
 
-                root = this->removeNode(std::move(root), low, high);
+                // Node with two children, get the inorder successor
+                IntervalTreeNode *temp = root->right.get();
 
-                if (root != nullptr)
-                    root->maxHigh = childMax.has_value() ? childMax.value() : root->high;
+                while (temp->left != nullptr)
+                    temp = temp->left.get();
+
+                // Copy the inorder successor's content to this node
+                root->low = temp->low;
+                root->high = temp->high;
+                root->payloads = temp->payloads;
+                root->maxHigh = std::max(root->left->maxHigh, root->right->maxHigh);
+
+                // Delete the inorder successor
+                removeInternal(root->right, temp->low, temp->high, std::nullopt);
             }
 
             return;
         }
-
-        // If the left child exists and its maximum high value is greater than or equal to the low value of the interval,
-        // there may be an overlapping node in the left subtree.
-        if (root->left && root->left->high >= low)
-            removeInternal(root->left, low, high, payload);
-        else
-            removeInternal(root->right, low, high, payload);
-    }
-
-    IntervalTreeNodePtr removeNode(IntervalTreeNodePtr root, const IntervalType &low, const IntervalType &high)
-    {
-        if (root == nullptr)
-            return nullptr;
-
-        // Find the node to delete
-        if (low < root->low)
-            root->left = removeNode(std::move(root->left), low, high);
-        else if (low > root->low)
-            root->right = removeNode(std::move(root->right), low, high);
-        else if (root->low == low && root->high == high)
-        {
-            // Node with only one child or no child
-            if (root->left == nullptr)
-                return std::move(root->right);
-            else if (root->right == nullptr)
-                return std::move(root->left);
-
-            // Node with two children, get the inorder successor
-            IntervalTreeNode *temp = root->right.get();
-
-            while (temp->left != nullptr)
-                temp = temp->left.get();
-
-            // Copy the inorder successor's content to this node
-            root->low = temp->low;
-            root->high = temp->high;
-
-            // Delete the inorder successor
-            root->right = removeNode(std::move(root->right), temp->low, temp->high);
-        }
-
-        return root;
     }
 
     void searchOverlappingIntervals(IntervalTreeNodePtr &root, const IntervalType &low, const IntervalType &high, std::list<Data> &overlaps)
