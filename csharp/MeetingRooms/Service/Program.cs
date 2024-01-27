@@ -1,30 +1,91 @@
-﻿using Scheduler;
-using IntInterval = Scheduler.Interval<int, int>;
-
+﻿
 class Program
 {
-    static void Main()
+    static void generate_indices(int low, int high, List<int> indices)
     {
-        // Create an interval tree
-        IntervalTree intervalTree = new IntervalTree();
+        if (low > high)
+            return;
 
-        // Insert intervals into the tree
-        intervalTree.Insert(new IntInterval(15, 20, 1));
-        intervalTree.Insert(new IntInterval(10, 30, 1));
-        intervalTree.Insert(new IntInterval(17, 19, 3));
-        intervalTree.Insert(new IntInterval(5, 20, 4));
-        intervalTree.Insert(new IntInterval(12, 15, 5));
-        intervalTree.Insert(new IntInterval(30, 40, 6));
+        int mid = (low + high) / 2;
+        indices.Add(mid);
 
-        // Search for overlapping intervals with a given interval
-        IntInterval searchInterval = new IntInterval(14, 16, 7);
-        List<IntInterval> overlappingIntervals = intervalTree.SearchOverlappingIntervals(searchInterval);
+        generate_indices(low, mid - 1, indices);
+        generate_indices(mid + 1, high, indices);
+    }
 
-        // Print the result
-        Console.WriteLine("Overlapping Intervals with [{0}, {1}]:", searchInterval.Start, searchInterval.End);
-        foreach (var overlappingInterval in overlappingIntervals)
+    static void Main(string[] args)
+    {
+        var nr_threads = 1;
+        var nr_intervals = 50000;
+        var nr_rooms = 3;
+
+        if (args.Length > 1 && (args.Length % 2 == 0))
         {
-            Console.WriteLine("[{0}, {1}]", overlappingInterval.Start, overlappingInterval.End);
+            var next_token = (int pos) =>
+            {
+                return int.Parse(args[pos + 1]);
+            };
+
+            for (var i = 0; i < args.Length; i++)
+            {
+                if (args[i] == "-t")
+                {
+                    nr_threads = next_token(i++);
+                }
+
+                if (args[i] == "-i")
+                {
+                    nr_intervals = next_token(i++);
+                }
+
+                if (args[i] == "-r")
+                {
+                    nr_rooms = next_token(i++);
+                }
+            }
         }
+
+        Console.WriteLine("Config: {0} threads | {1} rooms | {2} intervals", nr_threads, nr_rooms, nr_intervals);
+
+        var scheduler = new MeetingRooms();
+
+        for (var i = 0; i < nr_rooms; i++)
+        {
+            var m = new MeetingRoom()
+            {
+                Name = "M" + i.ToString(),
+                Seats = i
+            };
+            scheduler.RegisterRoom(m);
+        }
+
+        var indices = new List<int>();
+        generate_indices(1, nr_intervals, indices);
+
+        var requestRoom = () =>
+        {
+            var now = DateTime.Now;
+
+            foreach (var seconds in indices)
+            {
+                var slot1 = new DateTimeSlot(now.AddSeconds(seconds), 1);
+
+                var booking = scheduler.RequestRoom(slot1);
+            }
+        };
+
+        var threads = new List<Thread>();
+
+        for (var tn = 0; tn < nr_threads; tn++)
+        {
+            var t = new Thread(() => requestRoom());
+            threads.Add(t);
+            t.Start();
+        }
+
+        foreach (var t in threads)
+            t.Join();
+            
+        scheduler.Stop();
     }
 }
