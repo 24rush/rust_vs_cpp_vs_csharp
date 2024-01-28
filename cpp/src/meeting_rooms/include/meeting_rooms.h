@@ -55,7 +55,7 @@ public:
 
 protected:
     sys_time<milliseconds> timePoint;
-    milliseconds duration;
+    minutes duration;
 };
 
 class MeetingRoom
@@ -67,14 +67,15 @@ public:
     MeetingRoom &operator=(MeetingRoom &) = default;
     MeetingRoom &operator=(MeetingRoom &&) = default;
 
-    MeetingRoom(const std::string &a_name, size_t a_seats) : name(a_name), seats(a_seats)
-    {        
+    MeetingRoom(const std::string &a_name, size_t a_seats) : name(a_name), sv_name(name), seats(a_seats)
+    {     
     }
 
-    const std::string &getName() const { return this->name; }
+    const std::string_view& getName() const { return this->sv_name; }
 
 protected:
     std::string name;
+    std::string_view sv_name;
     size_t seats;    
 };
 
@@ -100,7 +101,7 @@ public:
 
 protected:
     using IntervalType = sys_time<milliseconds>; // meeting timestamp
-    using IntervalPayload = std::string;    // meeting room name
+    using IntervalPayload = std::string_view;    // meeting room name
 
     // Storage for booked intervals
     IntervalTree<IntervalType, IntervalPayload> iTree;
@@ -110,7 +111,7 @@ protected:
 
     // Storage of registered meeting rooms
     std::shared_mutex lck_meetingRooms;
-    std::unordered_map<IntervalPayload, MeetingRoom> meetingRooms;
+    std::unordered_map<std::string, MeetingRoom> meetingRooms;
 
     mutable std::recursive_mutex lck_cleanup;
     mutable std::condition_variable_any cv_wakeCleanupThread;

@@ -22,7 +22,7 @@ void MeetingRoomScheduler::registerRoom(const MeetingRoom &m)
 }
 
 std::optional<MeetingRoomBooking> MeetingRoomScheduler::requestRoom(const DateTimeSlot &ts)
-{
+{     
     auto bookedRoomsInInterval = this->findConflictingRooms(ts);
 
     {
@@ -105,9 +105,9 @@ MeetingRoomBooking MeetingRoomScheduler::bookRoom(const MeetingRoom &room, const
     return MeetingRoomBooking{room, ts};
 }
 
-std::set<std::string> MeetingRoomScheduler::findConflictingRooms(const DateTimeSlot &ts)
+std::set<std::string_view> MeetingRoomScheduler::findConflictingRooms(const DateTimeSlot &ts)
 {
-    std::set<IntervalPayload> conflictingRoomNames;
+    std::set<std::string_view> conflictingRoomNames;
 
     for (auto overlappingInterval : this->iTree.getOverlappingIntervalsWith(ts.getStartTime(), ts.getEndTime()))
     {

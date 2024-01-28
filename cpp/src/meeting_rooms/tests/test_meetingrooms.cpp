@@ -109,17 +109,10 @@ TEST(meeting_rooms, MeetingRoom_book_3)
 
     for (size_t i = 0; i < 100; i++)
     {
-        auto rnd_ts = DateTimeSlot(system_clock::now() + minutes(generate_rnd_duration(24 * 60)), 60);
-        auto room = scheduler.requestRoom(rnd_ts);
+        auto rnd_ts = DateTimeSlot(system_clock::now() + minutes(60 * i), 60);
+        auto booking = scheduler.requestRoom(rnd_ts);
 
-        if (room.has_value())
-        {
-            std::cout << "Room " << room->meetingRoom.getName() << " on " << rnd_ts.toString();
-        }
-        else
-        {
-            std::cout << "No rooms on " << rnd_ts.toString();
-        }
+        EXPECT_TRUE(booking.has_value());
     }
 }
 
@@ -139,18 +132,18 @@ TEST(meeting_rooms, remove_passed_bookings)
         for (size_t i = 0; i < 10; i++)
         {
             auto now = system_clock::now();
-            auto millis = milliseconds(/*generate_rnd_duration(5)*/i);
+            auto millis = milliseconds(i);
             auto rnd_ts = DateTimeSlot((now + millis), 1);
 
             auto room = scheduler.requestRoom(rnd_ts);
 
             if (room.has_value())
             {
-                //std::cout << "Room " << room->meetingRoom.getName() << "\n" << room->timeSlot.toString();
+                // std::cout << "Room " << room->meetingRoom.getName() << "\n" << room->timeSlot.toString();
             }
             else
             {
-                //std::cout << "No rooms on " << rnd_ts.toString();
+                // std::cout << "No rooms on " << rnd_ts.toString();
             }
         }
     };

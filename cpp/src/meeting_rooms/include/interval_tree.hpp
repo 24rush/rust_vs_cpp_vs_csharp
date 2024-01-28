@@ -154,9 +154,7 @@ protected:
 
                 // Delete the inorder successor
                 removeInternal(root->right, temp->low, temp->high, std::nullopt);
-            }
-
-            return;
+            }            
         }
     }
 
