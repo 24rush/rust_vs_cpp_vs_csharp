@@ -1,4 +1,5 @@
 
+using System.Collections.Concurrent;
 using Scheduler;
 
 public class DateTimeSlot
@@ -42,7 +43,7 @@ public class MeetingRoomBooking
 
 public class MeetingRooms
 {
-    private Dictionary<string, MeetingRoom> meetingRooms = new Dictionary<string, MeetingRoom>();
+    private ConcurrentDictionary<string, MeetingRoom> meetingRooms = new ConcurrentDictionary<string, MeetingRoom>();
 
     private IntervalTree<DateTime, string> intervalTree = new IntervalTree<DateTime, string>();
 
@@ -51,8 +52,6 @@ public class MeetingRooms
     private Thread cleanupThread;
     readonly object wakeCleanupThread = new object();
     private bool stop = false;
-
-    private ReaderWriterLockSlim mRoomsSync = new ReaderWriterLockSlim();
 
     public MeetingRooms()
     {
@@ -78,9 +77,7 @@ public class MeetingRooms
 
     public void RegisterRoom(MeetingRoom mr)
     {
-        mRoomsSync.EnterWriteLock();
-        meetingRooms.Add(mr.Name, mr);
-        mRoomsSync.ExitWriteLock();
+        meetingRooms.TryAdd(mr.Name, mr);
     }
 
     public void CancelBooking(MeetingRoomBooking booking)
@@ -90,38 +87,28 @@ public class MeetingRooms
 
     public MeetingRoomBooking? RequestRoom(DateTimeSlot ts)
     {
-        var bookedRoomsInInterval = findConflictingRooms(ts);
-        MeetingRoomBooking? booking = null;
+        var bookedRoomsInInterval = findConflictingRooms(ts);        
 
-        mRoomsSync.EnterReadLock();
         foreach (var room in meetingRooms)
         {
             if (!bookedRoomsInInterval.Contains(room.Key))
             {
-                booking = this.bookRoom(room.Value, ts);
-                break;
+                return bookRoom(room.Value, ts);                
             }
         }
 
-        mRoomsSync.ExitReadLock();
-
-        return booking;
+        return null;
     }
 
     public MeetingRoomBooking? RequestRoom(string roomName, DateTimeSlot ts)
     {
-        MeetingRoom? mr;
-
-        mRoomsSync.EnterReadLock();
+        MeetingRoom? mr;        
 
         if (meetingRooms.TryGetValue(roomName, out mr))
         {
             if (!findConflictingRooms(ts).Contains(roomName))
             {
-                MeetingRoomBooking? booking = bookRoom(mr, ts);
-                mRoomsSync.ExitReadLock();
-
-                return booking;
+                return bookRoom(mr, ts);
             }
         }
 
@@ -134,6 +121,7 @@ public class MeetingRooms
 
     static DateTime prevNow = DateTime.Now;
 
+
     private MeetingRoomBooking bookRoom(MeetingRoom mr, DateTimeSlot ts)
     {
         var showNoBookingsPerSec = () =>
@@ -142,8 +130,12 @@ public class MeetingRooms
             {
                 firstBooking = false;
                 prevNow = DateTime.Now;
+                return;
             }
-            else if (DateTime.Now - prevNow > TimeSpan.FromSeconds(1))
+
+            noBookings++;
+
+            if (DateTime.Now - prevNow > TimeSpan.FromSeconds(1))
             {
                 totalBookings += noBookings;
                 Console.WriteLine("{0} bookings/sec | total: {1}", noBookings, totalBookings);
@@ -173,8 +165,7 @@ public class MeetingRooms
 
             endTimes.Enqueue(ts.GetEndTime(), ts.GetEndTime());
 
-            noBookings++;
-            showNoBookingsPerSec();
+            //showNoBookingsPerSec();
 
             if (needsRestart)
             {
